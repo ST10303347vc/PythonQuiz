@@ -1,0 +1,26 @@
+[
+  {
+    "category": "AWS",
+    "question": "What is the AWS service for object storage?",
+    "options": ["A. S3", "B. EC2", "C. RDS", "D. Lambda"],
+    "correct_answer": "A"
+  },
+  {
+    "category": "AWS",
+    "question": "Which service allows for running code without provisioning servers?",
+    "options": ["A. EC2", "B. Lambda", "C. SNS", "D. VPC"],
+    "correct_answer": "B"
+  },
+  {
+    "category": "Cloud",
+    "question": "Which of the following is a cloud deployment model?",
+    "options": ["A. Ethernet", "B. Hybrid", "C. Switch", "D. Router"],
+    "correct_answer": "B"
+  },
+  {
+    "category": "Cloud",
+    "question": "What does SaaS stand for?",
+    "options": ["A. System as a Service", "B. Software as a Service", "C. Storage as a Service", "D. Security as a Service"],
+    "correct_answer": "B"
+  }
+]
