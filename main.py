@@ -18,17 +18,24 @@ class QuizManager:
         Initializes the QuizManager by loading questions and analytics data.
         """
         self.questions: List[Dict[str, Any]] = DataManager.load_json(QUESTIONS_FILE, default=[]) or []
-        self.stats: Dict[str, int] = DataManager.load_json(ANALYTICS_FILE, default=DEFAULT_STATS.copy())
+        self.stats: Dict[str, Any] = DataManager.load_analytics(ANALYTICS_FILE)
 
     def display_welcome_message(self) -> None:
         """
         Calculates and displays the welcome message with user statistics.
         """
-        total = self.stats.get("total_attempted", 0)
-        correct = self.stats.get("total_correct", 0)
         streak = self.stats.get("streak", 0)
         
-        accuracy = (correct / total * 100) if total > 0 else 0.0
+        # Calculate totals from new schema
+        total_attempted = 0
+        total_correct = 0
+        performance = self.stats.get("performance", {})
+        
+        for cat_data in performance.values():
+            total_attempted += cat_data.get("total", 0)
+            total_correct += cat_data.get("correct", 0)
+        
+        accuracy = (total_correct / total_attempted * 100) if total_attempted > 0 else 0.0
         print(f"\nWelcome back! Lifetime Accuracy: {accuracy:.1f}% | Current Streak: {streak}")
 
     def filter_questions(self) -> List[Dict[str, Any]]:
@@ -97,13 +104,20 @@ class QuizManager:
                 
             user_answer = self.get_user_answer()
             
-            self.stats["total_attempted"] += 1
+            # Update data structure
+            category = q.get('category', 'General')
+            if "performance" not in self.stats:
+                self.stats["performance"] = {}
+            if category not in self.stats["performance"]:
+                self.stats["performance"][category] = {"correct": 0, "total": 0}
+            
+            self.stats["performance"][category]["total"] += 1
             
             if user_answer == q['correct_answer']:
                 print("Correct!")
                 score += 1
-                self.stats["total_correct"] += 1
-                self.stats["streak"] += 1
+                self.stats["performance"][category]["correct"] += 1
+                self.stats["streak"] = self.stats.get("streak", 0) + 1
             else:
                 print(f"Wrong! The answer was {q['correct_answer']}")
                 self.stats["streak"] = 0

@@ -8,6 +8,47 @@ class DataManager:
     """
 
     @staticmethod
+    def load_analytics(filename: str) -> Any:
+        """
+        Loads analytics data and migrates old format if necessary.
+        
+        Args:
+            filename (str): The path to the analytics JSON file.
+            
+        Returns:
+             Any: The analytics data in the new format.
+        """
+        default_data = {"streak": 0, "performance": {}}
+        
+        if not os.path.exists(filename):
+            return default_data
+
+        try:
+            with open(filename, 'r') as f:
+                data = json.load(f)
+                
+            # Migration Logic: Check for old keys
+            if "total_attempted" in data:
+                print("Migrating analytics data to new format...")
+                migrated_data = {
+                    "streak": data.get("streak", 0),
+                    "performance": {
+                        "Legacy": {
+                            "correct": data.get("total_correct", 0),
+                            "total": data.get("total_attempted", 0)
+                        }
+                    }
+                }
+                # Save immediately to complete migration
+                DataManager.save_json(filename, migrated_data)
+                return migrated_data
+                
+            return data
+        except Exception as e:
+            print(f"Error loading analytics: {e}. Starting fresh.")
+            return default_data
+
+    @staticmethod
     def load_json(filename: str, default: Optional[Any] = None) -> Any:
         """
         Loads data from a JSON file.

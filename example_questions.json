@@ -1,0 +1,24 @@
+[
+    {
+        "category": "AWS",
+        "question": "What is the AWS service for object storage?",
+        "options": [
+            "A. S3",
+            "B. EC2",
+            "C. RDS",
+            "D. Lambda"
+        ],
+        "correct_answer": "A"
+    },
+    {
+        "category": "General",
+        "question": "Which language is this app written in?",
+        "options": [
+            "A. Java",
+            "B. Python",
+            "C. C++",
+            "D. Rust"
+        ],
+        "correct_answer": "B"
+    }
+]

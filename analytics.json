@@ -1,5 +1,13 @@
 {
-    "total_attempted": 6,
-    "total_correct": 5,
-    "streak": 3
+    "streak": 7,
+    "performance": {
+        "Legacy": {
+            "correct": 8,
+            "total": 10
+        },
+        "Cloud": {
+            "correct": 2,
+            "total": 2
+        }
+    }
 }
