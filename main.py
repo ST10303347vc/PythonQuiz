@@ -1,108 +1,117 @@
-import json
-import os
-import sys
 import random
+import sys
+from typing import List, Dict, Optional, Any
+from data_manager import DataManager
 
+# Constants
+QUESTIONS_FILE = 'questions.json'
 ANALYTICS_FILE = 'analytics.json'
+DEFAULT_STATS = {"total_attempted": 0, "total_correct": 0, "streak": 0}
 
-def load_analytics():
-    if not os.path.exists(ANALYTICS_FILE):
-        return {"total_attempted": 0, "total_correct": 0, "streak": 0}
-    
-    try:
-        with open(ANALYTICS_FILE, 'r') as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        print(f"Warning: Corrupt analytics file '{ANALYTICS_FILE}'. resetting stats.")
-        return {"total_attempted": 0, "total_correct": 0, "streak": 0}
+class QuizManager:
+    """
+    Manages the core logic of the Flashcard Quiz application.
+    """
 
-def save_analytics(stats):
-    try:
-        with open(ANALYTICS_FILE, 'w+') as f:
-            json.dump(stats, f, indent=4)
-    except IOError as e:
-        print(f"Error saving analytics: {e}")
+    def __init__(self) -> None:
+        """
+        Initializes the QuizManager by loading questions and analytics data.
+        """
+        self.questions: List[Dict[str, Any]] = DataManager.load_json(QUESTIONS_FILE, default=[]) or []
+        self.stats: Dict[str, int] = DataManager.load_json(ANALYTICS_FILE, default=DEFAULT_STATS.copy())
 
-def load_questions(filename='questions.json'):
-    if not os.path.exists(filename):
-        print(f"Error: The file '{filename}' was not found.")
-        return []
-    
-    try:
-        with open(filename, 'r') as f:
-            questions = json.load(f)
-            return questions
-    except json.JSONDecodeError:
-        print(f"Error: Failed to decode JSON from '{filename}'.")
-        return []
+    def display_welcome_message(self) -> None:
+        """
+        Calculates and displays the welcome message with user statistics.
+        """
+        total = self.stats.get("total_attempted", 0)
+        correct = self.stats.get("total_correct", 0)
+        streak = self.stats.get("streak", 0)
+        
+        accuracy = (correct / total * 100) if total > 0 else 0.0
+        print(f"\nWelcome back! Lifetime Accuracy: {accuracy:.1f}% | Current Streak: {streak}")
 
-def filter_questions(questions):
-    while True:
-        choice = input("Do you want to practice AWS, Cloud, or All? ").strip().lower()
-        if choice in ['aws', 'cloud', 'all']:
+    def filter_questions(self) -> List[Dict[str, Any]]:
+        """
+        Asks the user to select a category and filters the questions.
+
+        Returns:
+            List[Dict[str, Any]]: A list of filtered questions.
+        """
+        if not self.questions:
+            print("No questions data available.")
+            return []
+
+        while True:
+            choice = input("Do you want to practice AWS, Cloud, or All? ").strip().lower()
             if choice == 'all':
-                return questions
+                return self.questions
             
-            filtered = [q for q in questions if q.get('category', '').lower() == choice]
-            if not filtered:
-                print(f"No questions found for category: {choice}")
-                # Optional: ask again or return empty
-                continue
-            return filtered
-        else:
+            if choice in ['aws', 'cloud']:
+                filtered = [q for q in self.questions if q.get('category', '').lower() == choice]
+                if not filtered:
+                    print(f"No questions found for category: {choice}")
+                    continue
+                return filtered
+            
             print("Invalid choice. Please enter 'AWS', 'Cloud', or 'All'.")
 
-def get_user_answer():
-    while True:
-        answer = input("Your answer (A, B, C, or D): ").strip().upper()
-        if answer in ['A', 'B', 'C', 'D']:
-            return answer
-        print("Invalid input. Please enter A, B, C, or D.")
+    def get_user_answer(self) -> str:
+        """
+        Prompts the user for an answer and validates the input.
 
-def play_game():
-    stats = load_analytics()
-    
-    # Calculate lifetime accuracy
-    total = stats["total_attempted"]
-    correct = stats["total_correct"]
-    accuracy = (correct / total * 100) if total > 0 else 0
-    
-    print(f"\nWelcome back! Lifetime Accuracy: {accuracy:.1f}% | Current Streak: {stats['streak']}")
-    
-    questions = load_questions()
-    if not questions:
-        return
+        Returns:
+            str: The user's validated answer (A, B, C, or D).
+        """
+        while True:
+            answer = input("Your answer (A, B, C, or D): ").strip().upper()
+            if answer in ['A', 'B', 'C', 'D']:
+                return answer
+            print("Invalid input. Please enter A, B, C, or D.")
 
-    questions_to_play = filter_questions(questions)
-    
-    # Shuffle questions for randomness
-    random.shuffle(questions_to_play)
-    
-    score = 0
-    total_session = len(questions_to_play)
-    
-    print(f"\nStarting quiz with {total_session} questions...\n")
-    
-    for i, q in enumerate(questions_to_play, 1):
-        print(f"Question {i}/{total_session}: {q['question']}")
-        for option in q['options']:
-            print(option)
+    def run(self) -> None:
+        """
+        Runs the main game loop.
+        """
+        if not self.questions:
+            print("Exiting due to lack of questions.")
+            return
+
+        self.display_welcome_message()
+        
+        questions_to_play = self.filter_questions()
+        if not questions_to_play:
+            return
+
+        random.shuffle(questions_to_play)
+        
+        score = 0
+        total_session = len(questions_to_play)
+        
+        print(f"\nStarting quiz with {total_session} questions...\n")
+        
+        for i, q in enumerate(questions_to_play, 1):
+            print(f"Question {i}/{total_session}: {q['question']}")
+            for option in q['options']:
+                print(option)
+                
+            user_answer = self.get_user_answer()
             
-        user_answer = get_user_answer()
-        stats["total_attempted"] += 1
-        
-        if user_answer == q['correct_answer']:
-            print("Correct!")
-            score += 1
-            stats["total_correct"] += 1
-            stats["streak"] += 1
-        else:
-            print(f"Wrong! The answer was {q['correct_answer']}")
-            stats["streak"] = 0
-        print("-" * 30)
-        
-    print(f"\nGame Over! Your final score is {score}/{total_session}")
-    save_analytics(stats)
+            self.stats["total_attempted"] += 1
+            
+            if user_answer == q['correct_answer']:
+                print("Correct!")
+                score += 1
+                self.stats["total_correct"] += 1
+                self.stats["streak"] += 1
+            else:
+                print(f"Wrong! The answer was {q['correct_answer']}")
+                self.stats["streak"] = 0
+            print("-" * 30)
+            
+        print(f"\nGame Over! Your final score is {score}/{total_session}")
+        DataManager.save_json(ANALYTICS_FILE, self.stats)
 
 if __name__ == "__main__":
-    play_game()
+    app = QuizManager()
+    app.run()
