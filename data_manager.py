@@ -91,3 +91,13 @@ class DataManager:
             print(f"Error saving data to '{filename}': {e}")
         except TypeError as e:
             print(f"Error serializing data for '{filename}': {e}")
+
+    @staticmethod
+    def get_unique_categories(questions: list) -> list:
+        """
+        Extracts a sorted list of unique categories from the questions list.
+        """
+        categories = set()
+        for q in questions:
+            categories.add(q.get('category', 'Uncategorized'))
+        return sorted(list(categories))

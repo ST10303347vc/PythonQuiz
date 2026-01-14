@@ -23,6 +23,12 @@ class FlashcardApp(ctk.CTk):
         self.analytics = DataManager.load_analytics(ANALYTICS_FILE)
         self.current_question = None
         
+        # Session Data
+        self.session_data = {"correct": 0, "total": 0, "mistakes": []}
+
+        # Sync Analytics Categories
+        self.sync_analytics_categories()
+        
         # UI Layout
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
@@ -40,23 +46,51 @@ class FlashcardApp(ctk.CTk):
         # Start First Round
         self.next_question()
 
+    def sync_analytics_categories(self):
+        """Ensures all categories in questions.json exist in analytics."""
+        categories = DataManager.get_unique_categories(self.questions)
+        if "performance" not in self.analytics:
+            self.analytics["performance"] = {}
+            
+        updated = False
+        for cat in categories:
+            if cat not in self.analytics["performance"]:
+                self.analytics["performance"][cat] = {"correct": 0, "total": 0}
+                updated = True
+        
+        if updated:
+            DataManager.save_json(ANALYTICS_FILE, self.analytics)
+
     def setup_practice_tab(self):
         # Configure Grid
         self.tab_practice.grid_columnconfigure(0, weight=1)
         self.tab_practice.grid_rowconfigure(1, weight=1) # Buttons area expands
 
-        # Category Label
-        self.lbl_category = ctk.CTkLabel(self.tab_practice, text="Category: Loading...", font=("Roboto", 16, "bold"))
-        self.lbl_category.grid(row=0, column=0, pady=10)
+        # Category Selection
+        self.frm_controls = ctk.CTkFrame(self.tab_practice, fg_color="transparent")
+        self.frm_controls.grid(row=0, column=0, pady=10, sticky="ew")
+        self.frm_controls.grid_columnconfigure((0,1), weight=1)
+
+        self.lbl_category_sel = ctk.CTkLabel(self.frm_controls, text="Study Category:", font=("Roboto", 14))
+        self.lbl_category_sel.grid(row=0, column=0, sticky="e", padx=10)
+
+        categories = ["All"] + DataManager.get_unique_categories(self.questions)
+        self.cmb_category = ctk.CTkComboBox(self.frm_controls, values=categories, command=self.on_category_change)
+        self.cmb_category.set("All")
+        self.cmb_category.grid(row=0, column=1, sticky="w", padx=10)
+
+        # Question Area (Moved down slightly)
+        self.lbl_category = ctk.CTkLabel(self.tab_practice, text="Category: Loading...", font=("Roboto", 12))
+        self.lbl_category.grid(row=1, column=0, pady=(10, 0))
 
         # Question Label
         self.lbl_question = ctk.CTkLabel(self.tab_practice, text="Question text here", font=("Roboto", 20),
                                          wraplength=600)
-        self.lbl_question.grid(row=1, column=0, pady=20, sticky="n")
+        self.lbl_question.grid(row=2, column=0, pady=20, sticky="n")
 
         # Options Container
         self.frm_options = ctk.CTkFrame(self.tab_practice, fg_color="transparent")
-        self.frm_options.grid(row=2, column=0, pady=20, sticky="ew")
+        self.frm_options.grid(row=3, column=0, pady=20, sticky="ew")
         self.frm_options.grid_columnconfigure((0,1), weight=1)
 
         # Create Buttons (4)
@@ -68,10 +102,17 @@ class FlashcardApp(ctk.CTk):
             btn.grid(row=i//2, column=i%2, padx=10, pady=10, sticky="ew")
             self.option_buttons.append(btn)
         
-        # Next Button (Hidden initially)
-        self.btn_next = ctk.CTkButton(self.tab_practice, text="Next Question", command=self.next_question,
+        # Next Button & Finish Session
+        self.frm_actions = ctk.CTkFrame(self.tab_practice, fg_color="transparent")
+        self.frm_actions.grid(row=4, column=0, pady=20)
+        
+        self.btn_next = ctk.CTkButton(self.frm_actions, text="Next Question", command=self.next_question,
                                       fg_color="transparent", border_width=2, text_color=("gray10", "#DCE4EE"))
-        self.btn_next.grid(row=3, column=0, pady=20)
+        self.btn_next.grid(row=0, column=0, padx=10)
+
+        self.btn_finish = ctk.CTkButton(self.frm_actions, text="Finish Session", command=self.show_session_report,
+                                        fg_color="#D32F2F", hover_color="#B71C1C")
+        self.btn_finish.grid(row=0, column=1, padx=10)
         self.btn_next.configure(state="disabled")
 
     def setup_analytics_tab(self):
@@ -90,13 +131,36 @@ class FlashcardApp(ctk.CTk):
                                          wraplength=600, justify="left")
         self.lbl_insights.grid(row=2, column=0, pady=20, sticky="w", padx=20)
 
+        # Reset Button
+        self.btn_reset = ctk.CTkButton(self.tab_analytics, text="Reset Analytics", command=self.reset_analytics,
+                                       fg_color="#D32F2F", hover_color="#B71C1C")
+        self.btn_reset.grid(row=3, column=0, pady=20)
+
+    def on_category_change(self, choice):
+        self.next_question()
+
     def next_question(self):
         if not self.questions:
             self.lbl_question.configure(text="No questions available.")
             return
 
+        # Filter by Category
+        selected_cat = self.cmb_category.get()
+        if selected_cat == "All":
+            pool = self.questions
+        else:
+            pool = [q for q in self.questions if q.get('category') == selected_cat]
+
+        if not pool:
+             self.lbl_question.configure(text=f"No questions found for '{selected_cat}'.")
+             # Disable options
+             for btn in self.option_buttons:
+                 btn.configure(state="disabled", text="")
+             self.btn_next.configure(state="disabled")
+             return
+
         # Simple Random Selection
-        self.current_question = random.choice(self.questions)
+        self.current_question = random.choice(pool)
         
         # Update UI
         self.lbl_category.configure(text=f"Category: {self.current_question.get('category', 'General')}")
@@ -143,6 +207,17 @@ class FlashcardApp(ctk.CTk):
         
         # Update Analytics Data
         self.update_analytics(category, is_correct)
+        
+        # Update Session Data
+        self.session_data["total"] += 1
+        if is_correct:
+            self.session_data["correct"] += 1
+        else:
+            self.session_data["mistakes"].append({
+                "question": self.current_question.get("question"),
+                "category": category
+            })
+
 
     def update_analytics(self, category: str, is_correct: bool):
         # Update Streak
@@ -214,6 +289,55 @@ class FlashcardApp(ctk.CTk):
         self.lbl_insights.configure(text=f"Current Streak: {streak} 🔥\n"
                                          f"Strongest Area: {strongest} ({max_pct*100:.1f}%)\n"
                                          f"Area to Improve: {weakest} ({min_pct*100:.1f}%)")
+
+    def reset_analytics(self):
+        # Reset Data
+        self.analytics = {"streak": 0, "performance": {}}
+        self.sync_analytics_categories() # Re-add empty categories
+        DataManager.save_json(ANALYTICS_FILE, self.analytics)
+        self.refresh_analytics_ui()
+    
+    def show_session_report(self):
+        report = ctk.CTkToplevel(self)
+        report.title("Session Report")
+        report.geometry("400x500")
+        
+        total = self.session_data["total"]
+        if total == 0:
+            ctk.CTkLabel(report, text="No questions attempted yet!", font=("Roboto", 16)).pack(pady=20)
+            return
+
+        correct = self.session_data["correct"]
+        pct = (correct / total) * 100
+        
+        ctk.CTkLabel(report, text="Session Summary", font=("Roboto", 20, "bold")).pack(pady=10)
+        ctk.CTkLabel(report, text=f"Score: {pct:.1f}% ({correct}/{total})", font=("Roboto", 18)).pack(pady=5)
+        
+        if pct >= 80:
+            msg = "Great job! You're doing well."
+            color = "green"
+        elif pct >= 50:
+            msg = "Good effort, keep practicing!"
+            color = "orange"
+        else:
+            msg = "Review needed in weak areas."
+            color = "red"
+            
+        ctk.CTkLabel(report, text=msg, text_color=color, font=("Roboto", 14)).pack(pady=10)
+        
+        if self.session_data["mistakes"]:
+            ctk.CTkLabel(report, text="Needs Improvement:", font=("Roboto", 14, "bold")).pack(pady=5)
+            
+            # Group mistakes by category
+            mistake_cats = {}
+            for m in self.session_data["mistakes"]:
+                cat = m['category']
+                mistake_cats[cat] = mistake_cats.get(cat, 0) + 1
+                
+            for cat, count in mistake_cats.items():
+                ctk.CTkLabel(report, text=f"• {cat} ({count} mistakes)").pack()
+
+        ctk.CTkButton(report, text="Close", command=report.destroy).pack(pady=20, side="bottom")
 
 if __name__ == "__main__":
     app = FlashcardApp()

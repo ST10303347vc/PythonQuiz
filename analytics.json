@@ -1,5 +1,5 @@
 {
-    "streak": 7,
+    "streak": 1,
     "performance": {
         "Legacy": {
             "correct": 8,
@@ -7,6 +7,50 @@
         },
         "Cloud": {
             "correct": 2,
+            "total": 2
+        },
+        "AWS": {
+            "correct": 0,
+            "total": 0
+        },
+        "Analytics": {
+            "correct": 0,
+            "total": 0
+        },
+        "Application Integration": {
+            "correct": 0,
+            "total": 1
+        },
+        "Architecture": {
+            "correct": 0,
+            "total": 0
+        },
+        "Compute": {
+            "correct": 2,
+            "total": 2
+        },
+        "Cost Optimization": {
+            "correct": 1,
+            "total": 1
+        },
+        "Database": {
+            "correct": 3,
+            "total": 4
+        },
+        "Monitoring": {
+            "correct": 1,
+            "total": 1
+        },
+        "Networking": {
+            "correct": 2,
+            "total": 6
+        },
+        "Security": {
+            "correct": 0,
+            "total": 2
+        },
+        "Storage": {
+            "correct": 1,
             "total": 2
         }
     }
